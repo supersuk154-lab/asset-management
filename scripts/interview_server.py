@@ -12,7 +12,8 @@ from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 try:
     from googleapiclient.discovery import build
@@ -27,8 +28,7 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 SERVICE_ACCOUNT_JSON_STR = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "")
 RESPONSES_CSV_FILE_ID = os.environ.get("GOOGLE_DRIVE_RESPONSES_CSV_FILE_ID", "")
 
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
+client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 # ── FastAPI 앱 ────────────────────────────────────────────────────────────────
 app = FastAPI(title="재무 상담 인터뷰")
@@ -248,27 +248,27 @@ async def get_interview():
 
 @app.post("/session/start", response_model=SessionResponse)
 async def start_session():
-    if not GEMINI_API_KEY:
+    if not client:
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY가 설정되지 않았습니다.")
 
     session_id = str(uuid.uuid4())
 
-    model = genai.GenerativeModel(
-        model_name="gemini-2.0-flash",
-        system_instruction=INTERVIEW_SYSTEM_PROMPT,
+    chat = client.chats.create(
+        model="gemini-2.0-flash",
+        config=types.GenerateContentConfig(system_instruction=INTERVIEW_SYSTEM_PROMPT),
     )
-    chat = model.start_chat(history=[])
     greeting = chat.send_message("인터뷰를 시작해주세요.")
+    greeting_text = greeting.text
 
     sessions[session_id] = {
         "chat": chat,
         "history": [
-            {"role": "model", "parts": [greeting.text]}
+            {"role": "model", "parts": [greeting_text]}
         ],
         "completed": False,
     }
 
-    return SessionResponse(session_id=session_id, message=greeting.text)
+    return SessionResponse(session_id=session_id, message=greeting_text)
 
 
 @app.post("/chat/{session_id}", response_model=ChatResponse)
@@ -287,7 +287,7 @@ async def chat_endpoint(session_id: str, body: ChatMessage):
         response = chat.send_message(body.message)
         ai_text = response.text
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Gemini 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"Gemini 오류: {str(e)}")
 
     session["history"].append({"role": "model", "parts": [ai_text]})
 
@@ -317,8 +317,10 @@ async def complete_interview(session_id: str):
     prompt = EXTRACTION_PROMPT_TEMPLATE.format(conversation=conversation_text)
 
     try:
-        extractor_model = genai.GenerativeModel("gemini-2.0-flash")
-        extraction_response = extractor_model.generate_content(prompt)
+        extraction_response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt,
+        )
         raw_json = extraction_response.text.strip()
 
         # JSON 블록 파싱

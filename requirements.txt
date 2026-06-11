@@ -13,7 +13,7 @@ pandas>=1.5.0            # yfinance 의존성
 # ── 인터뷰 서버 (FastAPI + Gemini) ───────────────────────
 fastapi>=0.100.0
 uvicorn[standard]>=0.23.0
-google-generativeai>=0.8.0
+google-genai>=1.0.0
 google-api-python-client>=2.100.0
 google-auth>=2.23.0
 
