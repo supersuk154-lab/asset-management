@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c ' *)",
+      "Bash(pip install *)",
+      "Bash(python scripts/orchestrator.py status)",
+      "mcp__claude_ai_Google_Drive__get_file_metadata"
+    ]
+  }
+}

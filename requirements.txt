@@ -1,0 +1,46 @@
+# ─────────────────────────────────────────────────────────
+# 자산관리 자동화 파이프라인 — 직접 의존성 목록
+# 설치: pip install -r requirements.txt
+# ─────────────────────────────────────────────────────────
+
+# ── 핵심 (항상 필요) ──────────────────────────────────────
+pydantic>=2.0.0          # JSON 스키마 검증 (schemas.py)
+requests>=2.28.0         # FRED/ECOS API 호출 (data_fetcher.py)
+yfinance>=0.2.0          # 주가·펀더멘털 데이터 (price_cache.py)
+numpy>=1.24.0            # 벡터 연산 (risk_calculator.py, optional)
+pandas>=1.5.0            # yfinance 의존성
+
+# ── AI / LLM 클라이언트 ──────────────────────────────────
+anthropic>=0.50.0        # Claude API (llm_client.py — Phase 5-C)
+
+# ── HTML 파싱 ────────────────────────────────────────────
+beautifulsoup4>=4.11.0   # 안티그래비티 리포트 파싱 (fetch_market_data.py)
+
+# ── 티커 정규화 (퍼지 매칭) ──────────────────────────────
+thefuzz>=0.19.0          # 종목명 퍼지 매칭 (ticker_normalizer.py)
+python-Levenshtein>=0.20.0  # thefuzz 성능 향상 (선택)
+
+# ── Google Sheets 동기화 (선택) ───────────────────────────
+# sync_forms.py 사용 시 설치:
+#   pip install gspread google-auth
+# gspread>=5.0.0
+# google-auth>=2.0.0
+
+# ── PDF 생성 (선택) ───────────────────────────────────────
+# generate_pdf.py 사용 시 하나를 설치:
+#   pip install weasyprint   (권장)
+#   pip install pdfkit       (wkhtmltopdf 필요)
+# weasyprint>=57.0
+
+# ── 테스트 ───────────────────────────────────────────────
+pytest>=7.0.0            # 단위 테스트 실행
+
+# ─────────────────────────────────────────────────────────
+# 환경변수 설정 (.env 파일 예시):
+#   FRED_API_KEY=your_fred_key
+#   ECOS_API_KEY=your_ecos_key
+#   ANTHROPIC_API_KEY=your_anthropic_key
+#   GMAIL_USER=your_gmail@gmail.com
+#   GMAIL_APP_PASSWORD=your_app_password
+#   SPREADSHEET_ID=your_google_sheet_id
+# ─────────────────────────────────────────────────────────

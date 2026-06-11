@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>내 돈 사용설명서 — {{CLIENT_ID}} — {{DATE}}</title>
+<!-- 초보자용 1페이지 Easy 리포트 (master_report_easy.html)
+     report-writer가 정식 리포트와 별도로 생성: reports/{date}_easy.html
+     CSS 변수·박스 클래스는 정식 템플릿과 동일 계열을 재사용해 톤을 맞춘다.
+     모든 {{EASY_*}} 블록은 정식 리포트와 동일 소스 JSON에서 도출(숫자 불일치 금지). -->
+<style>
+  :root {
+    --glass-bg: #161b27;
+    --glass-border: rgba(255, 255, 255, 0.12);
+    --accent-green: #00e676;
+    --accent-blue: #40c4ff;
+    --accent-purple: #b388ff;
+    --accent-red: #ff5252;
+    --accent-yellow: #ffd740;
+    --text-primary: #f0f4ff;
+    --text-secondary: rgba(240, 244, 255, 0.65);
+    --bg-grad-1: #0d1117;
+    --bg-grad-2: #1a1f2e;
+    --bg-grad-3: #0f1923;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif;
+    background: linear-gradient(135deg, var(--bg-grad-1) 0%, var(--bg-grad-2) 50%, var(--bg-grad-3) 100%);
+    color: var(--text-primary);
+    min-height: 100vh;
+    padding: 2rem 1rem;
+    line-height: 1.7;
+  }
+  .container { max-width: 640px; margin: 0 auto; }
+
+  .report-header {
+    text-align: center;
+    padding: 2rem 1.5rem;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    margin-bottom: 1.2rem;
+  }
+  .report-header h1 { font-size: 1.5rem; font-weight: 800; margin-bottom: 0.5rem; }
+  .report-header .sub { color: var(--text-secondary); font-size: 0.85rem; line-height: 1.6; }
+
+  /* Easy 카드 — 큰 번호 + 한 메시지 */
+  .easy-card {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 1.6rem 1.5rem;
+    margin-bottom: 1.2rem;
+  }
+  .easy-card .step {
+    display: inline-block;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--accent-blue);
+    background: rgba(64,196,255,0.12);
+    border-radius: 999px;
+    padding: 0.2rem 0.9rem;
+    margin-bottom: 1rem;
+  }
+  .easy-card h2 { font-size: 1.15rem; font-weight: 700; margin-bottom: 0.9rem; }
+
+  /* 한 문장 진단 — 큰 글씨 강조 */
+  .headline {
+    font-size: 1.25rem;
+    font-weight: 800;
+    line-height: 1.5;
+    padding: 1.2rem 1.3rem;
+    background: rgba(64,196,255,0.08);
+    border: 1px solid rgba(64,196,255,0.25);
+    border-radius: 14px;
+    margin-bottom: 1rem;
+  }
+  .score-line { font-size: 0.95rem; color: var(--text-secondary); }
+  .score-line .score-num { font-size: 1.3rem; font-weight: 800; }
+  .score-num.green { color: var(--accent-green); }
+  .score-num.yellow { color: var(--accent-yellow); }
+  .score-num.red { color: var(--accent-red); }
+
+  /* 이유 리스트 (✅/⚠️) */
+  .why-list { list-style: none; padding: 0; }
+  .why-list li {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 0.9rem 1.1rem;
+    margin-bottom: 0.7rem;
+    font-size: 0.95rem;
+  }
+  .why-list li.good { border-left: 4px solid var(--accent-green); }
+  .why-list li.warn { border-left: 4px solid var(--accent-yellow); }
+
+  /* 할 일 체크박스 */
+  .todo-list { list-style: none; padding: 0; }
+  .todo-list li {
+    background: rgba(0,230,118,0.05);
+    border: 1px solid rgba(0,230,118,0.18);
+    border-radius: 12px;
+    padding: 0.9rem 1.1rem;
+    margin-bottom: 0.7rem;
+    font-size: 0.95rem;
+  }
+  .todo-list li .when {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--accent-green);
+    margin-right: 0.5rem;
+  }
+  .todo-list li .check { margin-right: 0.5rem; }
+
+  /* 돈 분배 — 지키는 돈/불리는 돈 */
+  .split-bar { display: flex; border-radius: 12px; overflow: hidden; height: 54px; margin: 0.5rem 0 1rem; }
+  .split-keep { background: linear-gradient(90deg, #1565c0, #1976d2); display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; }
+  .split-grow { background: linear-gradient(90deg, #2e7d32, #388e3c); display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; }
+  .split-bar .amt { font-size: 0.75rem; font-weight: 500; opacity: 0.9; }
+
+  /* Q&A 박스 */
+  .qa-box {
+    background: rgba(179,136,255,0.06);
+    border: 1px solid rgba(179,136,255,0.2);
+    border-radius: 12px;
+    padding: 1rem 1.2rem;
+    margin-top: 0.8rem;
+    font-size: 0.9rem;
+  }
+  .qa-box .q { font-weight: 700; color: var(--accent-purple); margin-bottom: 0.3rem; }
+  .qa-box .a { color: var(--text-primary); margin-bottom: 0.9rem; }
+  .qa-box .a:last-child { margin-bottom: 0; }
+
+  /* 하락 대비 박스 */
+  .fear-box {
+    background: rgba(255,82,82,0.06);
+    border: 1px solid rgba(255,82,82,0.22);
+    border-radius: 14px;
+    padding: 1.2rem 1.3rem;
+    font-size: 0.95rem;
+  }
+  .fear-box strong { color: var(--accent-red); }
+
+  /* 다음 점검 / 미니사전 / 면책 */
+  .next-box {
+    text-align: center;
+    background: rgba(64,196,255,0.06);
+    border: 1px solid rgba(64,196,255,0.2);
+    border-radius: 14px;
+    padding: 1.2rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--accent-blue);
+    margin-bottom: 1.2rem;
+  }
+  .mini-dict {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 1rem 1.2rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.8;
+    margin-bottom: 1.2rem;
+  }
+  .mini-dict .dt { color: var(--text-primary); font-weight: 700; }
+  .full-report-link {
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 1.2rem;
+  }
+  .disclaimer {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 1rem 1.2rem;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="report-header">
+    <h1>💌 내 돈 사용설명서</h1>
+    <div class="sub">한눈에 보기 &nbsp;|&nbsp; {{DATE}}<br>주식을 처음 접하는 분도 5분이면 이해할 수 있게 정리했어요.</div>
+  </div>
+
+  <!-- ① 한 문장 진단 -->
+  <div class="easy-card">
+    <span class="step">① 지금 내 돈 상태</span>
+    <div class="headline">{{EASY_HEADLINE}}</div>
+    <div class="score-line">{{EASY_SCORE_LINE}}</div>
+  </div>
+
+  <!-- ② 이유 3가지 -->
+  <div class="easy-card">
+    <span class="step">② 왜 그런가요?</span>
+    {{EASY_WHY_HTML}}
+  </div>
+
+  <!-- ③ 이번 달 할 일 -->
+  <div class="easy-card">
+    <span class="step">③ 이번 달 할 일</span>
+    {{EASY_TODO_HTML}}
+  </div>
+
+  <!-- ④ 돈 분배 -->
+  <div class="easy-card">
+    <span class="step">④ 내 돈, 이렇게 나눠요</span>
+    {{EASY_MONEY_SPLIT_HTML}}
+  </div>
+
+  <!-- ⑤ 떨어지면 어떡하죠 -->
+  <div class="easy-card">
+    <span class="step">⑤ 떨어지면 어떡하죠?</span>
+    <div class="fear-box">{{EASY_FEAR_HTML}}</div>
+  </div>
+
+  <!-- ⑥ 다음 점검 -->
+  <div class="next-box">📅 다음 점검일: {{NEXT_REVIEW_DATE}}</div>
+
+  <!-- 미니사전 -->
+  <div class="mini-dict">
+    📚 <strong>그래도 궁금하다면 (미니사전)</strong><br>
+    {{EASY_GLOSSARY_HTML}}
+  </div>
+
+  <div class="full-report-link">📊 자세한 분석 전체는 같은 폴더의 정식 리포트({{DATE}}.html)에서 볼 수 있어요.</div>
+
+  <div class="disclaimer">{{DISCLAIMER}}</div>
+
+</div>
+</body>
+</html>

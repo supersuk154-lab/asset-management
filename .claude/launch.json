@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "report-preview",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "7788", "--directory", "G:\\내 드라이브\\자산관리 자동화\\templates"],
+      "port": 7788
+    }
+  ]
+}

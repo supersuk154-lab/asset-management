@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>재무 상담 인터뷰</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+                   "Noto Sans KR", sans-serif;
+      background: #f0f2f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 480px;
+      height: 100vh;
+      max-height: 800px;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+      overflow: hidden;
+    }
+
+    /* 헤더 */
+    .header {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: #fff;
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-shrink: 0;
+    }
+    .header-avatar {
+      width: 44px; height: 44px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+    }
+    .header-info h1 { font-size: 17px; font-weight: 700; }
+    .header-info p { font-size: 12px; opacity: 0.8; margin-top: 2px; }
+
+    /* 메시지 영역 */
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      scroll-behavior: smooth;
+    }
+
+    .bubble-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+    }
+    .bubble-row.ai { justify-content: flex-start; }
+    .bubble-row.user { justify-content: flex-end; }
+
+    .ai-avatar {
+      width: 32px; height: 32px;
+      background: #2563eb;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+      align-self: flex-end;
+    }
+
+    .bubble {
+      max-width: 78%;
+      padding: 12px 16px;
+      border-radius: 18px;
+      font-size: 14.5px;
+      line-height: 1.6;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+    .bubble.ai {
+      background: #f1f5f9;
+      color: #1e293b;
+      border-bottom-left-radius: 4px;
+    }
+    .bubble.user {
+      background: #2563eb;
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+
+    /* 타이핑 인디케이터 */
+    .typing {
+      display: flex; align-items: center; gap: 5px;
+      padding: 12px 16px;
+      background: #f1f5f9;
+      border-radius: 18px;
+      border-bottom-left-radius: 4px;
+      max-width: 80px;
+    }
+    .typing span {
+      width: 7px; height: 7px;
+      background: #94a3b8;
+      border-radius: 50%;
+      animation: bounce 1.2s infinite;
+    }
+    .typing span:nth-child(2) { animation-delay: .2s; }
+    .typing span:nth-child(3) { animation-delay: .4s; }
+    @keyframes bounce {
+      0%, 80%, 100% { transform: translateY(0); }
+      40% { transform: translateY(-8px); }
+    }
+
+    /* 빠른 응답 버튼 (위험 성향) */
+    .quick-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 0 16px 4px 56px;
+    }
+    .quick-btn {
+      background: #fff;
+      border: 1.5px solid #2563eb;
+      color: #2563eb;
+      padding: 10px 16px;
+      border-radius: 12px;
+      font-size: 13.5px;
+      cursor: pointer;
+      text-align: left;
+      transition: all .15s;
+      line-height: 1.4;
+    }
+    .quick-btn:hover {
+      background: #eff6ff;
+    }
+    .quick-btn:active {
+      background: #2563eb;
+      color: #fff;
+    }
+
+    /* 완료 버튼 */
+    .complete-section {
+      padding: 8px 16px 4px 56px;
+    }
+    .complete-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #16a34a, #15803d);
+      color: #fff;
+      border: none;
+      padding: 14px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity .15s;
+    }
+    .complete-btn:hover { opacity: 0.9; }
+    .complete-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* 입력 영역 */
+    .input-area {
+      padding: 12px 16px 16px;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+      flex-shrink: 0;
+    }
+    .input-area textarea {
+      flex: 1;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-size: 14.5px;
+      font-family: inherit;
+      resize: none;
+      max-height: 120px;
+      outline: none;
+      transition: border-color .15s;
+      line-height: 1.5;
+    }
+    .input-area textarea:focus { border-color: #2563eb; }
+    .input-area textarea::placeholder { color: #94a3b8; }
+    .send-btn {
+      width: 44px; height: 44px;
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background .15s;
+    }
+    .send-btn:hover { background: #1d4ed8; }
+    .send-btn:disabled { background: #94a3b8; cursor: not-allowed; }
+    .send-btn svg { width: 20px; height: 20px; }
+
+    /* 완료 화면 */
+    .done-screen {
+      display: none;
+      flex: 1;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 32px;
+      text-align: center;
+    }
+    .done-screen.visible { display: flex; }
+    .done-icon { font-size: 64px; margin-bottom: 24px; }
+    .done-screen h2 { font-size: 22px; font-weight: 700; color: #1e293b; margin-bottom: 12px; }
+    .done-screen p { font-size: 15px; color: #64748b; line-height: 1.7; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <!-- 헤더 -->
+  <div class="header">
+    <div class="header-avatar">💼</div>
+    <div class="header-info">
+      <h1>AI 재무 상담</h1>
+      <p>맞춤형 자산관리 진단 인터뷰</p>
+    </div>
+  </div>
+
+  <!-- 채팅 영역 -->
+  <div class="messages" id="messages"></div>
+
+  <!-- 빠른 응답 버튼 (처음엔 숨김) -->
+  <div class="quick-buttons" id="quickButtons" style="display:none">
+    <button class="quick-btn" onclick="sendQuickReply('1. 팔고 싶다 (손실이라도 손절하고 현금 확보)')">
+      1. 팔고 싶다<br><small style="opacity:.7">손실이라도 손절하고 현금 확보</small>
+    </button>
+    <button class="quick-btn" onclick="sendQuickReply('2. 일부만 팔아 손실을 줄인다 (보유 지속)')">
+      2. 일부만 팔아서 줄인다<br><small style="opacity:.7">손실을 줄이되 일부 보유 지속</small>
+    </button>
+    <button class="quick-btn" onclick="sendQuickReply('3. 더 사겠다 (하락이 기회라고 생각)')">
+      3. 더 사겠다<br><small style="opacity:.7">하락이 기회라고 생각</small>
+    </button>
+  </div>
+
+  <!-- 진단 시작 버튼 (처음엔 숨김) -->
+  <div class="complete-section" id="completeSection" style="display:none">
+    <button class="complete-btn" id="completeBtn" onclick="startDiagnosis()">
+      🚀 맞춤 진단 시작하기
+    </button>
+  </div>
+
+  <!-- 완료 화면 -->
+  <div class="done-screen" id="doneScreen">
+    <div class="done-icon">✅</div>
+    <h2>인터뷰 완료!</h2>
+    <p>입력하신 정보가 저장되었습니다.<br>전문 AI가 분석 후<br>맞춤 재무 진단 리포트를 제공해 드립니다.<br><br>감사합니다 😊</p>
+  </div>
+
+  <!-- 입력 영역 -->
+  <div class="input-area" id="inputArea">
+    <textarea id="userInput" rows="1" placeholder="메시지를 입력하세요..."
+              onkeydown="handleKeyDown(event)" oninput="autoResize(this)"></textarea>
+    <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="22" y1="2" x2="11" y2="13"></line>
+        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<script>
+  let sessionId = null;
+  let isWaiting = false;
+  const messagesEl = document.getElementById("messages");
+  const inputEl = document.getElementById("userInput");
+  const sendBtn = document.getElementById("sendBtn");
+  const quickButtons = document.getElementById("quickButtons");
+  const completeSection = document.getElementById("completeSection");
+  const doneScreen = document.getElementById("doneScreen");
+  const inputArea = document.getElementById("inputArea");
+
+  // ── 초기화 ──────────────────────────────────────────────────────────────────
+  async function init() {
+    setLoading(true);
+    try {
+      const res = await fetch("/session/start", { method: "POST" });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      sessionId = data.session_id;
+      appendBubble("ai", data.message);
+    } catch (e) {
+      appendBubble("ai", "서버 연결에 실패했습니다. 페이지를 새로고침해주세요.\n\n오류: " + e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── 메시지 전송 ─────────────────────────────────────────────────────────────
+  async function sendMessage() {
+    const text = inputEl.value.trim();
+    if (!text || isWaiting || !sessionId) return;
+
+    appendBubble("user", text);
+    inputEl.value = "";
+    autoResize(inputEl);
+    hideQuickButtons();
+
+    await callChat(text);
+  }
+
+  async function sendQuickReply(text) {
+    if (isWaiting || !sessionId) return;
+    appendBubble("user", text);
+    hideQuickButtons();
+    await callChat(text);
+  }
+
+  async function callChat(text) {
+    setLoading(true);
+    const typingEl = showTyping();
+    try {
+      const res = await fetch(`/chat/${sessionId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+
+      removeTyping(typingEl);
+      appendBubble("ai", data.message);
+
+      if (data.show_risk_buttons) showQuickButtons();
+      if (data.show_complete_button) showCompleteButton();
+    } catch (e) {
+      removeTyping(typingEl);
+      appendBubble("ai", "오류가 발생했습니다. 다시 시도해주세요.\n" + e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── 진단 시작 (완료 처리) ────────────────────────────────────────────────────
+  async function startDiagnosis() {
+    const btn = document.getElementById("completeBtn");
+    btn.disabled = true;
+    btn.textContent = "⏳ 정보 저장 중...";
+    try {
+      const res = await fetch(`/complete/${sessionId}`, { method: "POST" });
+      if (!res.ok) throw new Error(await res.text());
+      showDoneScreen();
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = "🚀 맞춤 진단 시작하기";
+      appendBubble("ai", "저장 중 오류가 발생했습니다. 다시 시도해주세요.\n" + e.message);
+    }
+  }
+
+  // ── UI 헬퍼 ─────────────────────────────────────────────────────────────────
+  function appendBubble(role, text) {
+    const row = document.createElement("div");
+    row.className = `bubble-row ${role}`;
+
+    if (role === "ai") {
+      const avatar = document.createElement("div");
+      avatar.className = "ai-avatar";
+      avatar.textContent = "🤖";
+      row.appendChild(avatar);
+    }
+
+    const bubble = document.createElement("div");
+    bubble.className = `bubble ${role}`;
+    bubble.textContent = text;
+    row.appendChild(bubble);
+
+    messagesEl.appendChild(row);
+    scrollToBottom();
+  }
+
+  function showTyping() {
+    const row = document.createElement("div");
+    row.className = "bubble-row ai";
+    row.id = "typing-indicator";
+
+    const avatar = document.createElement("div");
+    avatar.className = "ai-avatar";
+    avatar.textContent = "🤖";
+    row.appendChild(avatar);
+
+    const typing = document.createElement("div");
+    typing.className = "typing";
+    typing.innerHTML = "<span></span><span></span><span></span>";
+    row.appendChild(typing);
+
+    messagesEl.appendChild(row);
+    scrollToBottom();
+    return row;
+  }
+
+  function removeTyping(el) {
+    if (el && el.parentNode) el.parentNode.removeChild(el);
+  }
+
+  function showQuickButtons() {
+    quickButtons.style.display = "flex";
+    scrollToBottom();
+  }
+
+  function hideQuickButtons() {
+    quickButtons.style.display = "none";
+  }
+
+  function showCompleteButton() {
+    completeSection.style.display = "block";
+    scrollToBottom();
+  }
+
+  function showDoneScreen() {
+    messagesEl.style.display = "none";
+    quickButtons.style.display = "none";
+    completeSection.style.display = "none";
+    inputArea.style.display = "none";
+    doneScreen.classList.add("visible");
+  }
+
+  function setLoading(val) {
+    isWaiting = val;
+    sendBtn.disabled = val;
+    inputEl.disabled = val;
+  }
+
+  function scrollToBottom() {
+    setTimeout(() => {
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }, 50);
+  }
+
+  function handleKeyDown(e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  }
+
+  function autoResize(el) {
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 120) + "px";
+  }
+
+  // ── 시작 ─────────────────────────────────────────────────────────────────────
+  init();
+</script>
+</body>
+</html>

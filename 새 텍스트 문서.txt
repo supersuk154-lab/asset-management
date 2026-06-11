@@ -1,0 +1,63 @@
+client_20260531_001 (supersuk154@gmail.com) 파이프라인 이어서 실행해줘.
+
+완료된 단계:
+
+history.json / processed.json 초기화 완료
+macro_snapshot.json 2026-06-01로 갱신 완료
+portfolio.json 저장 및 validate PASS 완료 (safe 46% / risky 54%)
+남은 단계 (여기서부터 실행):
+
+stock-recommender → stock_plan.json 저장 → validate
+risk-scorer → risk_score.json 저장 → validate
+report-writer → reports/2026-06-01.md + .html 저장 (이전 세션 없음 — 신규 처리)
+reviewer → reviewer_output.json 저장 → validate
+finalize 명령 실행
+이걸 붙여넣으면 새 대화에서 Claude가 CLAUDE.md를 읽고 바로 stock-recommender부터 이어서 실행합니다.
+
+-----------------------------------------------------------------------------------------
+client_20260531_001 파이프라인 인수인계
+작업일: 2026-06-01
+
+완료된 단계
+단계	결과
+history.json / processed.json 초기화	✅ 완료
+macro_snapshot.json 2026-06-01 갱신	✅ 완료
+Step 3: portfolio.json validate PASS	✅ safe 46% / risky 54%
+Step 4: stock_plan.json 신규 생성 + validate PASS	✅ safe 3개 / core 2개 / satellite 2개 / total 100만원
+남은 단계 (여기서부터 실행)
+Step 5: risk-scorer → risk_score.json 저장 → validate --agent risk
+Step 6: report-writer → reports/2026-06-01.md + .html 저장 (신규, previous_session=null)
+Step 7: reviewer → reviewer_output.json 저장 → validate --agent reviewer
+finalize: --score 65 --grade 🔴 --risk_type 안정형 --weakest behavioral_gap --verdict PASS
+risk-scorer 채점 사전 계산값
+지표	계산	점수
+유동성/현금흐름	저축률 33.3% ≥ 30%	25점
+행동적 위험 갭	Q3=팔고 싶다(10pt) + risk_conflict -5pt	5점
+비상예비비	현금 300만원 / 월지출 200만원 = 1.5배 (급여소득자 1~2배)	15점
+자산 집중도	투자 없음 25pt + correlation_score 50점(-5pt)	20점
+합계		65점 🔴
+weakest_point: behavioral_gap
+proxy_mdd: -27.0% → ips_limit_breach: true (IPS 한도 -10% 초과)
+downside_risk_warning: true (risk_conflict=true)
+recovery_required_pct: 37.0%
+calmar_proxy: ≈ 0.15 (4% / 27%) → "하락 위험 과다"
+sequence_risk_warning: false (45세, 5060 아님)
+주요 파일 경로
+data/clients/client_20260531_001/
+  ├── kyc.json            ✅
+  ├── portfolio.json      ✅ (2026-06-01 갱신)
+  ├── stock_plan.json     ✅ (2026-06-01 신규)
+  ├── risk_score.json     ← Step 5 생성 필요
+  ├── reviewer_output.json ← Step 7 생성 필요
+  └── reports/
+      └── 2026-06-01.md/.html ← Step 6 생성 필요
+market_data/
+  ├── macro_snapshot.json     ✅ (2026-06-01)
+  ├── trending_stocks.json    ✅ (2026-05-30)
+  └── compliance_rules.json   ✅
+다음 대화 시작 명령
+python scripts/orchestrator.py status --client client_20260531_001
+위 명령으로 현황 확인 후 "client_20260531_001 파이프라인 이어서 실행 — Step 5(risk-scorer)부터" 라고 지시하면 됩니다.
+---------------------------------------------------------------------------------------------------------------------------
+
+그리고 마무리 보고서 출력

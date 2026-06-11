@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>재무 마스터 리포트 — {{CLIENT_ID}} — {{DATE}}</title>
+<style>
+  :root {
+    --glass-bg: #161b27;
+    --glass-border: rgba(255, 255, 255, 0.12);
+    --accent-green: #00e676;
+    --accent-blue: #40c4ff;
+    --accent-purple: #b388ff;
+    --accent-red: #ff5252;
+    --accent-yellow: #ffd740;
+    --text-primary: #f0f4ff;
+    --text-secondary: rgba(240, 244, 255, 0.65);
+    --bg-grad-1: #0d1117;
+    --bg-grad-2: #1a1f2e;
+    --bg-grad-3: #0f1923;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif;
+    background: linear-gradient(135deg, var(--bg-grad-1) 0%, var(--bg-grad-2) 50%, var(--bg-grad-3) 100%);
+    color: var(--text-primary);
+    min-height: 100vh;
+    padding: 2rem 1rem;
+  }
+
+  .container { max-width: 900px; margin: 0 auto; }
+
+  /* 헤더 */
+  .report-header {
+    text-align: center;
+    padding: 2.5rem;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+
+    margin-bottom: 1.5rem;
+  }
+  .report-header h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.4rem; }
+  .report-header .meta { color: var(--text-secondary); font-size: 0.85rem; }
+  .report-header .badge {
+    display: inline-block;
+    padding: 0.3rem 1rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-top: 0.8rem;
+  }
+  .badge-green { background: rgba(0, 230, 118, 0.15); color: var(--accent-green); border: 1px solid rgba(0, 230, 118, 0.3); }
+  .badge-yellow { background: rgba(255, 215, 64, 0.15); color: var(--accent-yellow); border: 1px solid rgba(255, 215, 64, 0.3); }
+  .badge-red { background: rgba(255, 82, 82, 0.15); color: var(--accent-red); border: 1px solid rgba(255, 82, 82, 0.3); }
+
+  /* 카드 */
+  .card {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+
+    padding: 1.8rem;
+    margin-bottom: 1.5rem;
+  }
+  .card-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--accent-blue);
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid var(--glass-border);
+  }
+
+  /* 접이식 카드 (details/summary) — 평소엔 제목만, 클릭하면 상세가 펼쳐짐 */
+  details.card > summary.card-title {
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+  details.card > summary.card-title::-webkit-details-marker { display: none; }
+  details.card > summary.card-title::after {
+    content: "▼ 펼치기";
+    font-size: 0.72rem;
+    font-weight: 400;
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+  details.card[open] > summary.card-title::after { content: "▲ 접기"; }
+  details.card:not([open]) > summary.card-title {
+    margin-bottom: 0;
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  /* 프로필 그리드 */
+  .profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+  .profile-item label { font-size: 0.75rem; color: var(--text-secondary); display: block; margin-bottom: 0.2rem; }
+  .profile-item span { font-size: 0.95rem; font-weight: 600; }
+
+  /* 자산 바 */
+  .asset-row { margin-bottom: 1rem; }
+  .asset-row .label { display: flex; justify-content: space-between; margin-bottom: 0.4rem; font-size: 0.85rem; }
+  .asset-row .label .name { color: var(--text-secondary); }
+  .asset-row .label .amount { font-weight: 600; }
+  .bar-track { background: rgba(255,255,255,0.08); border-radius: 999px; height: 8px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 999px; transition: width 0.6s ease; }
+  .bar-cash { background: linear-gradient(90deg, var(--accent-green), #69f0ae); }
+  .bar-invest { background: linear-gradient(90deg, var(--accent-blue), #80d8ff); }
+  .bar-pension { background: linear-gradient(90deg, var(--accent-purple), #d1c4e9); }
+  .bar-non-liquid { background: linear-gradient(90deg, var(--accent-yellow), #ffe082); }
+  .bar-debt { background: linear-gradient(90deg, var(--accent-red), #ff8a80); }
+
+  /* 배분 비율 */
+  .ratio-display { display: flex; border-radius: 12px; overflow: hidden; height: 48px; margin: 1rem 0; }
+  .ratio-safe { background: linear-gradient(90deg, #1565c0, #1976d2); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem; }
+  .ratio-risky { background: linear-gradient(90deg, #e65100, #ef6c00); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem; }
+  .ratio-core { background: linear-gradient(90deg, #1b5e20, #2e7d32); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; }
+  .ratio-sat { background: linear-gradient(90deg, #4a148c, #6a1b9a); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; }
+  .ratio-label { font-size: 0.75rem; color: var(--text-secondary); text-align: center; margin-top: 0.3rem; }
+
+  /* 종목 카드 */
+  .stock-item {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 1rem 1.2rem;
+    margin-bottom: 0.8rem;
+  }
+  .stock-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+  .stock-name { font-weight: 700; font-size: 1rem; }
+  .stock-type { font-size: 0.72rem; padding: 0.2rem 0.6rem; border-radius: 999px; }
+  .type-core { background: rgba(64, 196, 255, 0.15); color: var(--accent-blue); }
+  .type-sat { background: rgba(179, 136, 255, 0.15); color: var(--accent-purple); }
+  .stock-amount { font-size: 1.1rem; font-weight: 700; color: var(--accent-green); }
+  .stock-comment { font-size: 0.82rem; color: var(--text-secondary); margin-top: 0.4rem; }
+  .stock-drop { font-size: 0.78rem; color: var(--accent-yellow); margin-top: 0.3rem; }
+
+  /* 점수 */
+  .score-big { font-size: 3.5rem; font-weight: 900; line-height: 1; }
+  .score-big.green { color: var(--accent-green); }
+  .score-big.yellow { color: var(--accent-yellow); }
+  .score-big.red { color: var(--accent-red); }
+  .score-sub { font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.3rem; }
+
+  .score-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-top: 1.2rem; }
+  .score-item { background: rgba(255,255,255,0.04); border-radius: 10px; padding: 0.8rem 1rem; }
+  .score-item .s-label { font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.4rem; }
+  .score-item .s-val { font-size: 1.3rem; font-weight: 700; }
+  .score-item .s-bar { margin-top: 0.4rem; background: rgba(255,255,255,0.08); border-radius: 999px; height: 5px; overflow: hidden; }
+  .score-item .s-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent-blue), var(--accent-green)); }
+
+  /* 팩트 폭격 */
+  .fact-bomb {
+    background: rgba(255, 82, 82, 0.08);
+    border: 1px solid rgba(255, 82, 82, 0.25);
+    border-radius: 12px;
+    padding: 1rem 1.2rem;
+    margin-top: 1rem;
+    font-size: 0.9rem;
+    line-height: 1.6;
+  }
+  .fact-bomb .fb-label { font-size: 0.75rem; color: var(--accent-red); font-weight: 700; margin-bottom: 0.4rem; }
+
+  /* 매수 플랜 섹션 (stock_plan_html) */
+  .stock-plan { margin-top: 0.5rem; }
+  .stock-plan p.disclaimer {
+    font-size: 0.78rem; color: var(--accent-yellow);
+    margin-bottom: 1rem; background: none; border: none; text-align: left; padding: 0;
+  }
+  .stock-plan h3 {
+    font-size: 0.95rem; font-weight: 700; color: var(--accent-blue);
+    margin: 1.2rem 0 0.6rem; padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--glass-border);
+  }
+  .stock-plan h4 {
+    font-size: 0.85rem; font-weight: 700; color: var(--accent-green);
+    margin: 1rem 0 0.5rem;
+  }
+  .stock-plan ul, .stock-plan ol { list-style: none; padding: 0; margin: 0; }
+  .stock-plan li {
+    background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border);
+    border-radius: 12px; padding: 0.9rem 1.1rem; margin-bottom: 0.7rem;
+    font-size: 0.88rem; line-height: 1.65; color: var(--text-primary);
+  }
+  .stock-plan li strong {
+    font-size: 0.95rem; color: var(--text-primary);
+    display: block; margin-bottom: 0.3rem;
+  }
+  .stock-plan li em {
+    display: block; margin-top: 0.5rem; font-size: 0.8rem;
+    color: var(--accent-purple); font-style: normal;
+  }
+  .stock-plan p.full-disclaimer {
+    font-size: 0.75rem; color: var(--text-secondary); margin-top: 1rem;
+    padding: 0.8rem 1rem; background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; text-align: center;
+  }
+
+  /* 룰북 */
+  .rulebook { background: rgba(64, 196, 255, 0.06); border: 1px solid rgba(64, 196, 255, 0.2); border-radius: 12px; padding: 1rem 1.2rem; }
+  .rulebook p { font-size: 0.88rem; line-height: 1.7; margin-bottom: 0.5rem; }
+
+  /* 면책 */
+  .disclaimer {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 1rem 1.2rem;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    text-align: center;
+    margin-top: 1.5rem;
+  }
+
+  /* 액션 배너 (TOP_ACTION 전용) */
+  .action-banner {
+    background: rgba(64, 196, 255, 0.08);
+    border: 1px solid rgba(64, 196, 255, 0.25);
+    border-radius: 14px;
+    padding: 1.2rem 1.4rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+    line-height: 1.6;
+  }
+  .action-banner .banner-title { font-size: 1rem; font-weight: 700; color: var(--accent-blue); margin-bottom: 0.8rem; }
+  .action-banner strong { color: var(--accent-blue); }
+
+  /* 핵심 수치 요약 그리드 */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.8rem;
+    margin-bottom: 1.5rem;
+  }
+  .summary-card {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 14px;
+    padding: 1.1rem 1rem;
+    text-align: center;
+  }
+  .summary-card .s-label { font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 0.4rem; }
+  .summary-card .s-value { font-size: 1.1rem; font-weight: 700; color: var(--accent-blue); }
+  .summary-card .s-value.warn { color: var(--accent-red); }
+  .summary-card .s-value.ok { color: var(--accent-green); }
+  .summary-card .s-value.yellow { color: var(--accent-yellow); }
+
+  /* warn-box / info-box / nudge-box / success-box */
+  .warn-box {
+    background: rgba(255,82,82,0.06);
+    border: 1px solid rgba(255,82,82,0.2);
+    border-radius: 10px;
+    padding: 0.8rem 1rem;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    margin-top: 0.8rem;
+  }
+  .info-box {
+    background: rgba(64,196,255,0.06);
+    border: 1px solid rgba(64,196,255,0.2);
+    border-radius: 10px;
+    padding: 0.8rem 1rem;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    margin-top: 0.8rem;
+  }
+  .nudge-box {
+    background: rgba(255,215,64,0.06);
+    border: 1px solid rgba(255,215,64,0.2);
+    border-radius: 10px;
+    padding: 0.8rem 1rem;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    margin-top: 0.8rem;
+    color: var(--accent-yellow);
+  }
+  .success-box {
+    background: rgba(0,230,118,0.06);
+    border: 1px solid rgba(0,230,118,0.2);
+    border-radius: 10px;
+    padding: 0.8rem 1rem;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    margin-top: 0.8rem;
+  }
+
+  /* 행동재무 편향 */
+  .bias-item {
+    background: rgba(179,136,255,0.06);
+    border: 1px solid rgba(179,136,255,0.18);
+    border-radius: 12px;
+    padding: 1rem 1.2rem;
+    margin-bottom: 0.8rem;
+    font-size: 0.88rem;
+    line-height: 1.65;
+  }
+  .bias-title { font-weight: 700; color: var(--accent-purple); margin-bottom: 0.4rem; font-size: 0.9rem; }
+
+  /* 즉시 실행 과제 */
+  .urgent-list { list-style: none; padding: 0; margin-top: 1rem; counter-reset: urgent-counter; }
+  .urgent-list li {
+    background: rgba(255,82,82,0.05);
+    border: 1px solid rgba(255,82,82,0.15);
+    border-radius: 10px;
+    padding: 0.8rem 1rem;
+    margin-bottom: 0.6rem;
+    font-size: 0.88rem;
+    line-height: 1.6;
+    counter-increment: urgent-counter;
+  }
+  .urgent-list li::before { content: counter(urgent-counter) ". "; color: var(--accent-red); font-weight: 700; }
+
+  /* 인라인 종목 뱃지 */
+  .stk { display: inline-block; font-size: 0.82rem; font-weight: 700; padding: 0.1rem 0.55rem; border-radius: 4px; white-space: nowrap; }
+  .stk.sell { background: rgba(255,82,82,0.15); color: var(--accent-red); }
+  .stk.safe { background: rgba(64,196,255,0.15); color: var(--accent-blue); }
+  .stk.core { background: rgba(0,230,118,0.15); color: var(--accent-green); }
+  .stk.sat  { background: rgba(179,136,255,0.15); color: var(--accent-purple); }
+
+  /* stock-plan li strong 색상 뱃지 */
+  .stock-plan li strong {
+    font-size: 0.95rem; color: var(--text-primary);
+    display: block; margin-bottom: 0.3rem;
+    padding: 0.25rem 0.7rem; border-radius: 6px;
+    border-left: 3px solid var(--glass-border);
+  }
+  .stock-plan li strong.stk-sell { background: rgba(255,82,82,0.10); color: var(--accent-red); border-left-color: var(--accent-red); }
+  .stock-plan li strong.stk-safe { background: rgba(64,196,255,0.10); color: var(--accent-blue); border-left-color: var(--accent-blue); }
+  .stock-plan li strong.stk-core { background: rgba(0,230,118,0.10); color: var(--accent-green); border-left-color: var(--accent-green); }
+  .stock-plan li strong.stk-sat  { background: rgba(179,136,255,0.10); color: var(--accent-purple); border-left-color: var(--accent-purple); }
+
+  /* stock-plan h2 (섹션 제목) */
+  .stock-plan h2 {
+    font-size: 1rem; font-weight: 700; color: var(--accent-blue);
+    margin: 1.5rem 0 0.8rem; padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--glass-border);
+  }
+
+  /* 상관계수 테이블 */
+  .corr-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-top: 0.8rem; }
+  .corr-table th { background: rgba(255,82,82,0.1); color: var(--accent-red); font-weight: 700; padding: 0.5rem 0.7rem; text-align: left; }
+  .corr-table td { padding: 0.4rem 0.7rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .corr-table tr:last-child td { border-bottom: none; }
+  .r-critical { color: var(--accent-red); font-weight: 700; }
+  .r-high { color: var(--accent-yellow); font-weight: 600; }
+
+  /* 실행 요약 테이블 */
+  .action-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-top: 0.8rem; }
+  .action-table th { background: rgba(179,136,255,0.12); color: var(--accent-purple); font-weight: 700; padding: 0.5rem 0.8rem; text-align: left; }
+  .action-table td { padding: 0.45rem 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.05); color: var(--text-secondary); }
+  .action-table tr:last-child td { border-bottom: none; }
+
+  /* 용어 툴팁 */
+  .term {
+    border-bottom: 1px dashed rgba(64, 196, 255, 0.5);
+    cursor: help;
+    position: relative;
+  }
+  .term::after {
+    content: attr(data-tip);
+    display: none;
+    position: absolute;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1e2535;
+    color: var(--text-primary);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    padding: 0.5rem 0.8rem;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    white-space: nowrap;
+    z-index: 10;
+    max-width: 260px;
+    white-space: normal;
+  }
+  .term:hover::after { display: block; }
+
+  /* 비율 레이블 */
+  .ratio-label { font-size: 0.75rem; color: var(--text-secondary); text-align: center; margin-top: 0.3rem; }
+
+  @media (max-width: 600px) {
+    .profile-grid { grid-template-columns: 1fr; }
+    .score-grid { grid-template-columns: 1fr; }
+    .summary-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- 헤더 -->
+  <div class="report-header">
+    <h1>📊 나의 재무 마스터 리포트</h1>
+    <div class="meta">{{CLIENT_ID}} &nbsp;|&nbsp; 작성일: {{DATE}}</div>
+    <div class="badge {{GRADE_CLASS}}">{{GRADE}} {{GRADE_MESSAGE}}</div>
+  </div>
+
+  <!-- 1. 기본 프로필 -->
+  <div class="card">
+    <div class="card-title">1. 기본 프로필 및 투자 성향</div>
+    <div class="profile-grid">
+      <div class="profile-item"><label>연령대</label><span>{{AGE_GROUP}}</span></div>
+      <div class="profile-item"><label>투자 성향</label><span>{{RISK_TYPE}}</span></div>
+      <div class="profile-item"><label>재무 목표</label><span>{{GOAL}}</span></div>
+      <div class="profile-item"><label>월 여유 자금</label><span>{{MONTHLY_SURPLUS}}</span></div>
+      <div class="profile-item"><label>월 평균 수입</label><span>{{MONTHLY_INCOME}}</span></div>
+    </div>
+  </div>
+
+  <!-- 2. 자산 현황 -->
+  <div class="card">
+    <div class="card-title">2. 현재 자산 현황 (4분류)</div>
+    <div class="asset-row">
+      <div class="label"><span class="name">🟢 현금 및 단기 자산</span><span class="amount">{{CASH_ASSETS}} ({{CASH_PCT}}%)</span></div>
+      <div class="bar-track"><div class="bar-fill bar-cash" style="width:{{CASH_PCT}}%"></div></div>
+    </div>
+    <div class="asset-row">
+      <div class="label"><span class="name">🔵 일반 투자 자산</span><span class="amount">{{INVEST_ASSETS}} ({{INVEST_PCT}}%)</span></div>
+      <div class="bar-track"><div class="bar-fill bar-invest" style="width:{{INVEST_PCT}}%"></div></div>
+    </div>
+    <div class="asset-row">
+      <div class="label"><span class="name">🟣 연금 및 장기 자산</span><span class="amount">{{PENSION_ASSETS}} ({{PENSION_PCT}}%)</span></div>
+      <div class="bar-track"><div class="bar-fill bar-pension" style="width:{{PENSION_PCT}}%"></div></div>
+    </div>
+    <div class="asset-row">
+      <div class="label"><span class="name">🏠 부동산 및 전월세 보증금 (비유동성 자산)</span><span class="amount">{{NON_LIQUID_ASSETS}} ({{NON_LIQUID_PCT}}%)</span></div>
+      <div class="bar-track"><div class="bar-fill bar-non-liquid" style="width:{{NON_LIQUID_PCT}}%"></div></div>
+    </div>
+    <div class="asset-row">
+      <div class="label"><span class="name">🔴 총 부채 (저금리: {{MORTGAGE_DEBT}} / 고금리: {{HIGH_INTEREST_DEBT}})</span><span class="amount">{{TOTAL_DEBT}}</span></div>
+      <div class="bar-track"><div class="bar-fill bar-debt" style="width:{{DEBT_PCT}}%"></div></div>
+    </div>
+    <div style="text-align:right; margin-top:0.8rem; font-weight:700; font-size:1.05rem;">순자산 합계: {{NET_ASSETS}}</div>
+  </div>
+
+  <!-- 3. 자산 배분 (기본 접힘 — TDF 글라이드 패스 상세 산식) -->
+  <details class="card">
+    <summary class="card-title">3. 전략적 자산 배분 (핵심-위성 전략)</summary>
+    <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:1rem;">💡 {{MACRO_SUMMARY}}</p>
+
+    <div style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.4rem;">전체 자산 배분</div>
+    <div class="ratio-display">
+      <div class="ratio-safe" style="width:{{SAFE_PCT}}%">안전 {{SAFE_PCT}}%</div>
+      <div class="ratio-risky" style="width:{{RISKY_PCT}}%">위험 {{RISKY_PCT}}%</div>
+    </div>
+
+    <div style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.4rem; margin-top:1rem;">위험 자산 내부 배분</div>
+    <div class="ratio-display">
+      <div class="ratio-core" style="width:{{CORE_PCT}}%">핵심(Core) {{CORE_PCT}}%</div>
+      <div class="ratio-sat" style="width:{{SAT_PCT}}%">위성(Satellite) {{SAT_PCT}}%</div>
+    </div>
+
+    <div style="margin-top:1rem; font-size:0.85rem; color:var(--text-secondary); line-height:1.6;">
+      💬 {{GLIDE_PATH_COMMENT}}
+    </div>
+  </details>
+
+  <!-- 4. 매수 플랜 -->
+  <div class="card">
+    <div class="card-title">4. 이번 달 실전 매수 플랜</div>
+    <p style="font-size:0.78rem; color:var(--accent-yellow); margin-bottom:1rem;">⚠️ 아래 종목은 참고용 예시입니다. 실제 매수 결정 전 충분히 검토하세요.</p>
+
+    {{STOCK_PLAN_HTML}}
+
+    {{EXISTING_HOLDINGS_NOTE_HTML}}
+
+    <div style="margin-top:1rem; background:rgba(0,230,118,0.06); border:1px solid rgba(0,230,118,0.2); border-radius:10px; padding:0.8rem 1rem; font-size:0.85rem;">
+      📅 <strong>실행 플랜</strong>: {{MONTHLY_PLAN}}
+    </div>
+  </div>
+
+  <!-- 4.5 상관관계 분석 -->
+  {{CORRELATION_NOTE_HTML}}
+
+  <!-- 5. 점수 -->
+  <div class="card">
+    <div class="card-title">5. AI 재무 건강 종합 진단</div>
+    <div style="display:flex; align-items:flex-end; gap:1rem;">
+      <div>
+        <div class="score-big {{SCORE_COLOR_CLASS}}">{{TOTAL_SCORE}}</div>
+        <div class="score-sub">/ 100점 &nbsp; {{GRADE}}</div>
+      </div>
+      <div style="font-size:0.88rem; color:var(--text-secondary); padding-bottom:0.4rem; line-height:1.5;">{{GRADE_MESSAGE}}</div>
+    </div>
+
+    <div class="score-grid">
+      <div class="score-item">
+        <div class="s-label">현금흐름 건강도</div>
+        <div class="s-val">{{SCORE_CASHFLOW}} <span style="font-size:0.75rem; font-weight:400; color:var(--text-secondary);">/ 25</span></div>
+        <div class="s-bar"><div class="s-fill" style="width:{{SCORE_CASHFLOW_PCT}}%"></div></div>
+      </div>
+      <div class="score-item">
+        <div class="s-label">위험 수용 마인드</div>
+        <div class="s-val">{{SCORE_RISK}} <span style="font-size:0.75rem; font-weight:400; color:var(--text-secondary);">/ 25</span></div>
+        <div class="s-bar"><div class="s-fill" style="width:{{SCORE_RISK_PCT}}%"></div></div>
+      </div>
+      <div class="score-item">
+        <div class="s-label">비상 예비비 확보율</div>
+        <div class="s-val">{{SCORE_EMERGENCY}} <span style="font-size:0.75rem; font-weight:400; color:var(--text-secondary);">/ 25</span></div>
+        <div class="s-bar"><div class="s-fill" style="width:{{SCORE_EMERGENCY_PCT}}%"></div></div>
+      </div>
+      <div class="score-item">
+        <div class="s-label">포트폴리오 분산도</div>
+        <div class="s-val">{{SCORE_DIV}} <span style="font-size:0.75rem; font-weight:400; color:var(--text-secondary);">/ 25</span></div>
+        <div class="s-bar"><div class="s-fill" style="width:{{SCORE_DIV_PCT}}%"></div></div>
+      </div>
+    </div>
+
+    <div class="fact-bomb">
+      <div class="fb-label">💡 젬(Gem)의 팩트 폭격</div>
+      {{FACT_BOMB}}
+    </div>
+  </div>
+
+  <!-- 6. 룰북 (기본 접힘 — 스마트 리밸런싱 룰) -->
+  <details class="card">
+    <summary class="card-title">6. 나만의 스마트 리밸런싱 룰북 (세금 절약형)</summary>
+    <div class="rulebook">
+      <p>⚖️ <strong>리밸런싱 기준</strong>: {{REBALANCING_RULE}}</p>
+      <p>🛡️ <strong>멘탈 케어</strong>: 하락장이 오면 당황하지 말고, 미리 세워둔 핵심 자산 비중을 채울 수 있는 바겐세일 기회로 활용하기!</p>
+    </div>
+  </details>
+
+  <!-- 7. 행동재무학 편향 진단 (감지된 편향이 있을 때만 렌더링됨) -->
+  {{BEHAVIORAL_BIAS_SECTION}}
+
+  <!-- 8. 다음 진단 D-10 체크리스트 -->
+  <div class="card" style="background:rgba(64,196,255,0.04); border-color:rgba(64,196,255,0.2);">
+    <div class="card-title" style="color:var(--accent-blue);">📋 다음 진단 준비 체크리스트</div>
+    <div style="font-size:0.85rem; line-height:1.8; color:var(--text-secondary);">
+      {{NEXT_REVIEW_CHECKLIST}}
+    </div>
+  </div>
+
+  <!-- 9. 후속 이메일 초안 -->
+  <div class="card" style="background:rgba(179,136,255,0.04); border-color:rgba(179,136,255,0.2);">
+    <div class="card-title" style="color:var(--accent-purple);">📧 오늘 진단 실행 요약</div>
+    <div style="font-size:0.85rem; line-height:1.8;">
+      {{FOLLOW_UP_EMAIL}}
+    </div>
+  </div>
+
+  <!-- 면책 고지 -->
+  <div class="disclaimer">
+    {{DISCLAIMER}}
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,37 @@
+# 환경변수 및 API 키
+.env
+*.env
+credentials.json
+"API 키/"
+API\ 키/
+
+# 고객 개인정보 (절대 올리지 않음)
+data/clients/
+data/responses.csv
+data/interview_pending.csv
+data/master_index.json
+
+# 로그 및 캐시
+logs/
+market_data/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# 가격 캐시
+market_data/price_cache.json
+market_data/stock_history_cache.json
+
+# Google Drive 네이티브 파일 (git에서 읽기 불가)
+*.gsheet
+*.gform
+*.gdoc
+*.gslides
+
+# 백업 파일
+*.bak
+
+# OS
+.DS_Store
+Thumbs.db

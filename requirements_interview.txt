@@ -1,0 +1,9 @@
+# ── 인터뷰 서버 전용 의존성 ──────────────────────────────────────────────────
+# 설치: pip install -r requirements_interview.txt
+
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+google-generativeai>=0.8.0
+google-api-python-client>=2.100.0
+google-auth>=2.23.0
+pydantic>=2.0.0
