@@ -206,6 +206,38 @@
     .send-btn:disabled { background: #94a3b8; cursor: not-allowed; }
     .send-btn svg { width: 20px; height: 20px; }
 
+    /* 첨부(계좌 캡처) 버튼 */
+    .attach-btn {
+      width: 44px; height: 44px;
+      background: #f1f5f9;
+      color: #475569;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      font-size: 20px;
+      transition: background .15s;
+    }
+    .attach-btn:hover { background: #e2e8f0; }
+    .attach-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* 사용자가 올린 이미지 미리보기 */
+    .img-grid img {
+      width: 100%;
+      border-radius: 10px;
+      display: block;
+    }
+    .img-grid.multi {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .img-grid.multi img {
+      aspect-ratio: 1 / 1;
+      object-fit: cover;
+    }
+
     /* 완료 화면 */
     .done-screen {
       display: none;
@@ -265,7 +297,11 @@
 
   <!-- 입력 영역 -->
   <div class="input-area" id="inputArea">
-    <textarea id="userInput" rows="1" placeholder="메시지를 입력하세요..."
+    <input type="file" id="fileInput" accept="image/*" multiple style="display:none"
+           onchange="handleFileSelect(event)" />
+    <button class="attach-btn" id="attachBtn" title="계좌 캡처 첨부"
+            onclick="document.getElementById('fileInput').click()">📎</button>
+    <textarea id="userInput" rows="1" placeholder="메시지 입력 · 📎로 계좌 캡처 첨부"
               onkeydown="handleKeyDown(event)" oninput="autoResize(this)"></textarea>
     <button class="send-btn" id="sendBtn" onclick="sendMessage()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -286,6 +322,7 @@
   const completeSection = document.getElementById("completeSection");
   const doneScreen = document.getElementById("doneScreen");
   const inputArea = document.getElementById("inputArea");
+  const attachBtn = document.getElementById("attachBtn");
 
   // ── 초기화 ──────────────────────────────────────────────────────────────────
   async function init() {
@@ -323,14 +360,68 @@
     await callChat(text);
   }
 
-  async function callChat(text) {
+  // ── 계좌 캡처 등 이미지 첨부 (여러 장 가능) ───────────────────────────────────
+  async function handleFileSelect(event) {
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";  // 같은 파일 재선택 가능하도록 초기화
+    if (!files.length || isWaiting || !sessionId) return;
+
+    if (files.length > 10) {
+      appendBubble("ai", "한 번에 최대 10장까지 올릴 수 있어요. 나눠서 올려주세요.");
+      return;
+    }
+    for (const f of files) {
+      if (!f.type.startsWith("image/")) {
+        appendBubble("ai", "이미지 파일만 첨부할 수 있어요. (계좌 화면 캡처 사진)");
+        return;
+      }
+      if (f.size > 8 * 1024 * 1024) {
+        appendBubble("ai", `"${f.name}" 이미지가 너무 커요. 각 8MB 이하로 올려주세요.`);
+        return;
+      }
+    }
+
+    let dataUrls;
+    try {
+      dataUrls = await Promise.all(files.map(readFileAsDataURL));
+    } catch (e) {
+      appendBubble("ai", "이미지를 읽는 중 오류가 발생했어요. 다시 시도해주세요.");
+      return;
+    }
+
+    const images = dataUrls.map((url, i) => ({
+      base64: url.split(",")[1],
+      mime: files[i].type,
+    }));
+    const caption = inputEl.value.trim();
+    inputEl.value = "";
+    autoResize(inputEl);
+    appendImageBubble(dataUrls, caption);
+    hideQuickButtons();
+    await callChat(caption, images);
+  }
+
+  function readFileAsDataURL(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function callChat(text, images) {
     setLoading(true);
     const typingEl = showTyping();
     try {
+      const payload = { message: text };
+      if (images && images.length) {
+        payload.images = images;
+      }
       const res = await fetch(`/chat/${sessionId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
@@ -385,6 +476,37 @@
     scrollToBottom();
   }
 
+  function appendImageBubble(dataUrls, caption) {
+    const urls = Array.isArray(dataUrls) ? dataUrls : [dataUrls];
+
+    const row = document.createElement("div");
+    row.className = "bubble-row user";
+
+    const bubble = document.createElement("div");
+    bubble.className = "bubble user";
+
+    const grid = document.createElement("div");
+    grid.className = urls.length > 1 ? "img-grid multi" : "img-grid";
+    urls.forEach((url) => {
+      const img = document.createElement("img");
+      img.src = url;
+      img.alt = "첨부 이미지";
+      grid.appendChild(img);
+    });
+    bubble.appendChild(grid);
+
+    if (caption) {
+      const cap = document.createElement("div");
+      cap.textContent = caption;
+      cap.style.marginTop = "6px";
+      bubble.appendChild(cap);
+    }
+
+    row.appendChild(bubble);
+    messagesEl.appendChild(row);
+    scrollToBottom();
+  }
+
   function showTyping() {
     const row = document.createElement("div");
     row.className = "bubble-row ai";
@@ -435,6 +557,7 @@
     isWaiting = val;
     sendBtn.disabled = val;
     inputEl.disabled = val;
+    attachBtn.disabled = val;
   }
 
   function scrollToBottom() {
