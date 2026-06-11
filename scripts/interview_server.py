@@ -254,7 +254,7 @@ async def start_session():
     session_id = str(uuid.uuid4())
 
     chat = client.chats.create(
-        model="gemini-2.0-flash-lite",
+        model="gemini-2.5-flash",
         config=types.GenerateContentConfig(system_instruction=INTERVIEW_SYSTEM_PROMPT),
     )
     greeting = chat.send_message("인터뷰를 시작해주세요.")
@@ -318,7 +318,7 @@ async def complete_interview(session_id: str):
 
     try:
         extraction_response = client.models.generate_content(
-            model="gemini-2.0-flash-lite",
+            model="gemini-2.5-flash",
             contents=prompt,
         )
         raw_json = extraction_response.text.strip()
