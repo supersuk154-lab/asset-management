@@ -198,7 +198,13 @@ def _get_drive_service():
 
 
 def append_row_to_drive_csv(row: List[str]) -> bool:
-    """Google Drive의 responses.csv에 행 추가 후 재업로드."""
+    """Google Drive의 responses.csv에 행 추가 후 재업로드.
+
+    헤더 불일치 방지: 기존 파일을 '컬럼명 기준(DictReader)'으로 읽고, 항상
+    캐노니컬 CSV_HEADER로 재작성(DictWriter)한다. 따라서 기존 파일 헤더가
+    옛 버전(예: 22컬럼)이어도 자동으로 현재 헤더로 승격되며, 신규 컬럼은
+    기존 행에서 빈 값으로 채워진다(위치 어긋남으로 인한 데이터 오염 차단).
+    """
     service = _get_drive_service()
     if not service or not RESPONSES_CSV_FILE_ID:
         return False
@@ -213,18 +219,28 @@ def append_row_to_drive_csv(row: List[str]) -> bool:
             _, done = downloader.next_chunk()
 
         existing_content = buf.getvalue().decode("utf-8-sig")
-        lines = existing_content.splitlines()
 
-        # 헤더가 없으면 추가
-        if not lines or lines[0].strip() == "":
-            lines = [",".join(CSV_HEADER)]
+        # 기존 행을 컬럼명 기준으로 파싱 (헤더 없거나 깨졌으면 빈 목록)
+        existing_rows = []
+        stripped = existing_content.strip()
+        if stripped:
+            reader = csv.DictReader(io.StringIO(existing_content))
+            if reader.fieldnames:
+                existing_rows = list(reader)
 
-        # 새 행 추가
+        # 새 행을 dict로 변환 (row는 CSV_HEADER 순서로 구성됨)
+        new_row = dict(zip(CSV_HEADER, row))
+
+        # 캐노니컬 헤더로 전체 재작성 (이름 기준 정렬, 누락 컬럼은 "" 채움)
         out_buf = io.StringIO()
-        writer = csv.writer(out_buf, quoting=csv.QUOTE_MINIMAL)
-        for line in lines:
-            out_buf.write(line + "\n")
-        writer.writerow(row)
+        writer = csv.DictWriter(
+            out_buf, fieldnames=CSV_HEADER, restval="",
+            extrasaction="ignore", quoting=csv.QUOTE_MINIMAL,
+        )
+        writer.writeheader()
+        for r in existing_rows:
+            writer.writerow(r)
+        writer.writerow(new_row)
 
         # 업로드
         upload_buf = io.BytesIO(out_buf.getvalue().encode("utf-8-sig"))
