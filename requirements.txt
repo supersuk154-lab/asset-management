@@ -10,6 +10,13 @@ yfinance>=0.2.0          # 주가·펀더멘털 데이터 (price_cache.py)
 numpy>=1.24.0            # 벡터 연산 (risk_calculator.py, optional)
 pandas>=1.5.0            # yfinance 의존성
 
+# ── 인터뷰 서버 (FastAPI + Gemini) ───────────────────────
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+google-generativeai>=0.8.0
+google-api-python-client>=2.100.0
+google-auth>=2.23.0
+
 # ── AI / LLM 클라이언트 ──────────────────────────────────
 anthropic>=0.50.0        # Claude API (llm_client.py — Phase 5-C)
 
