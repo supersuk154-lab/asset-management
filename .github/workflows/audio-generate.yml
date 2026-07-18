@@ -1,0 +1,46 @@
+name: 오디오 생성 (대본 → 대화 MP3)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - 'claude/**'
+    paths:
+      - '오디오생성기/input/**'
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 시스템 의존성 설치 (ffmpeg)
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: 파이썬 의존성 설치
+        run: pip install -r 오디오생성기/requirements.txt
+
+      - name: 대본 → MP3 생성 (edge-tts)
+        working-directory: 오디오생성기
+        run: |
+          for f in input/*.txt; do
+            echo "=== $f 처리 중 ==="
+            python scripts/pipeline.py "$f"
+          done
+
+      - name: 완성본 커밋 및 푸시
+        run: |
+          mkdir -p 오디오생성기/완성본
+          cp 오디오생성기/output/*.mp3 오디오생성기/완성본/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add 오디오생성기/완성본
+          git diff --cached --quiet || git commit -m "🔊 완성본 MP3 자동 생성 [skip ci]"
+          git push
