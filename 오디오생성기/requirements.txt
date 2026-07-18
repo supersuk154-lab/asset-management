@@ -1,5 +1,0 @@
-edge-tts>=7.0.0
-pydub>=0.25.1
-# 시스템 요구사항 (pip 아님):
-#   ffmpeg    — MP3 인코딩/디코딩 필수
-#   espeak-ng — 오프라인 대체 엔진 (--engine espeak 사용 시)
